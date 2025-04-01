@@ -45,7 +45,7 @@ contract RewardManagerStaking {
         _;
     }
 
-    // ------------------------  EVENTS -----------------------------------------------------
+// ------------------------  EVENTS -----------------------------------------------------
   
     event Staked(address indexed user, uint256 amountStaked, uint256 stakedTime);
     event Withdrawed(address indexed user, uint256 amountWithrawed, uint256 withrawTime);
@@ -66,8 +66,8 @@ contract RewardManagerStaking {
     function claim(uint256 amount) public updateReward(msg.sender) {
         uint256 reward = rewardOf[msg.sender];
         require(reward >= amount, "You don't have that much reward to claim.");
-        token.safeTransfer(msg.sender, reward);
         rewardOf[msg.sender] = 0;
+        token.safeTransfer(msg.sender, amount);
     }
 
     function withdraw(uint256 amount) public updateReward(msg.sender) {
@@ -78,18 +78,20 @@ contract RewardManagerStaking {
     }
 
     function exit() public {
-        withdraw(stakeOf[msg.sender]);
+        if( stakeOf[msg.sender] > 0 ){
+            withdraw(stakeOf[msg.sender]);
+        }
         claim(earned());
     }
 
 // ------------------------- CONFIGURATIONS -----------------------------------------------
     
-    function setDuration(uint256 _duration) public onlyRewardManager updateReward(address(0)) {
+    function setDuration(uint256 _duration) public onlyRewardManager  {
         require(rewardDetails.finishAt <= block.timestamp, "Reward duration is not finished.");
         rewardDetails.duration = _duration;
     }
 
-    function distributeReward(uint256 rewardAmount) public onlyRewardManager{
+    function distributeReward(uint256 rewardAmount) public onlyRewardManager updateReward(address(0)) {
         require(rewardAmount > 0, "Can only distribute more than 0");
         if( block.timestamp >= rewardDetails.finishAt) {
             rewardDetails.rewardRate = rewardAmount / rewardDetails.duration;
@@ -121,7 +123,7 @@ contract RewardManagerStaking {
     }
 
     function earned() public view returns (uint256) {
-        uint256 earn = rewardOf[msg.sender] + stakeOf[msg.sender] * ( (calculateRewardPerToken() - userRewardPerTokenPaid[msg.sender]) / 1e18);
+        uint256 earn = rewardOf[msg.sender] + (stakeOf[msg.sender] * (calculateRewardPerToken() - userRewardPerTokenPaid[msg.sender]) / 1e18);
         return earn;
     }
 }
